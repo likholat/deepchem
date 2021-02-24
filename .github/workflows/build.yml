@@ -10,6 +10,7 @@ on:
   pull_request: # ci work when creating a PR to master branch
     branches:
       - master
+      - openvino
     paths:
       - "scripts/install_deepchem_conda.ps1"
       - "scripts/install_deepchem_conda.sh"
@@ -40,6 +41,10 @@ jobs:
         key: ${{ matrix.os }}-pip-${{ hashFiles('env.*.yml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
     - name: Install miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
