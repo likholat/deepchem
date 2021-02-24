@@ -187,6 +187,8 @@ class CGCNN(nn.Module):
     if mode not in ['classification', 'regression']:
       raise ValueError("mode must be either 'classification' or 'regression'")
 
+    self.graph = None
+
     self.n_tasks = n_tasks
     self.mode = mode
     self.n_classes = n_classes
@@ -221,30 +223,25 @@ class CGCNN(nn.Module):
       If mode == 'classification', the shape is `(batch_size, n_tasks, n_classes)` (n_tasks > 1)
       or `(batch_size, n_classes)` (n_tasks == 1) and the output values are probabilities of each class label.
     """
-    graph = dgl_graph
+    
 
-    # if (type(graph) == list):
-      # import dgl
-      # g = dgl.DGLGraph()
-      # g.add_nodes(20)
-      # # src = torch.tensor(list(range(1, 241)))
-      # # g.add_edges(src, 0)
-      # g.ndata['x'] = torch.randn((20, 92))
-      # # g.edata['edge_attr'] = torch.randn(240, 240)
+    if type(dgl_graph) == list:
+      graph = self.graph
+      
+      node_feats = dgl_graph[0]
+      edge_feats = dgl_graph[1]
+      print('000000000000000000000000000000000')
+      # print(node_feats)
+    else:
+      graph = dgl_graph
+      node_feats = graph.ndata.pop('x')
+      edge_feats = graph.edata.pop('edge_attr')
+      print('111111111111111111111111111111111111')
+      # print(node_feats)
 
-
-      # print('**********************************************************')
-      # print(g)
-      # print('OK')
-      # graph = g
-      # embedding node features
-    node_feats = graph.ndata.pop('x')
-    edge_feats = graph.edata.pop('edge_attr')
-
-    # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    # print(len(node_feats))
-    # print(len(edge_feats))
+    print('1')
     node_feats = self.embedding(node_feats)
+    
 
     # convolutional layer
     for conv in self.conv_layers:
@@ -252,8 +249,11 @@ class CGCNN(nn.Module):
 
     # pooling
     graph.ndata['updated_x'] = node_feats
+    
     graph_feat = F.softplus(self.pooling(graph, 'updated_x'))
+    print('2')
     graph_feat = F.softplus(self.fc(graph_feat))
+    print('3')
     out = self.out(graph_feat)
 
     if self.mode == 'regression':

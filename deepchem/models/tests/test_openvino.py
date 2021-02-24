@@ -73,7 +73,7 @@ def test_cgcnn():
    # check overfit
   metric = dc.metrics.Metric(dc.metrics.mae_score, n_tasks=n_tasks)
   ref_scores = ref_model.evaluate(train, [metric], transformers)
-  scores = model.evaluate(train, [metric], transformers)
+  # scores = model.evaluate(train, [metric], transformers)
   # assert ref_scores[regression_metric.name] < 0.6
 
   if path.exists(path.join(current_dir, 'perovskite.json')):

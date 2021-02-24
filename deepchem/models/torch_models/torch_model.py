@@ -506,6 +506,7 @@ class TorchModel(Model):
       a NumPy array of the model produces a single output, or a list of arrays
       if it produces multiple outputs
     """
+
     results: Optional[List[np.ndarray]] = None
     variances: Optional[List[np.ndarray]] = None
     if uncertainty and (other_output_types is not None):
@@ -539,7 +540,21 @@ class TorchModel(Model):
       if self._use_openvino:
         output_values = [torch.Tensor(next(openvino_predictions))]
       else:
-        output_values = self.model(inputs)
+        # output_values = self.model(inputs)
+
+        # convert model
+        node_feats = inputs.ndata.pop('x')
+        edge_feats = inputs.edata.pop('edge_attr')
+        # print(self.model.graph)
+        inp = [node_feats, edge_feats]
+
+        self.model.graph = inputs
+        output_values = self.model(inp)
+
+        # import io
+        # buf = io.BytesIO()
+        # torch.onnx.export(self.model, inp, buf, opset_version=11)
+
       if isinstance(output_values, torch.Tensor):
         output_values = [output_values]
       output_values = [t.detach().cpu().numpy() for t in output_values]

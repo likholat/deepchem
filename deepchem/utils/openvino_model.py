@@ -98,7 +98,7 @@ class OpenVINOModel:
 
     # Import network from memory buffer
     return self._ie.read_network(buf.getvalue(), b'', init_from_buffer=True), \
-           generator
+           generator         
 
   def _read_tf_model(self):
     """
