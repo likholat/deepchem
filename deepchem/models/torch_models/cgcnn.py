@@ -222,9 +222,28 @@ class CGCNN(nn.Module):
       or `(batch_size, n_classes)` (n_tasks == 1) and the output values are probabilities of each class label.
     """
     graph = dgl_graph
-    # embedding node features
+
+    # if (type(graph) == list):
+      # import dgl
+      # g = dgl.DGLGraph()
+      # g.add_nodes(20)
+      # # src = torch.tensor(list(range(1, 241)))
+      # # g.add_edges(src, 0)
+      # g.ndata['x'] = torch.randn((20, 92))
+      # # g.edata['edge_attr'] = torch.randn(240, 240)
+
+
+      # print('**********************************************************')
+      # print(g)
+      # print('OK')
+      # graph = g
+      # embedding node features
     node_feats = graph.ndata.pop('x')
     edge_feats = graph.edata.pop('edge_attr')
+
+    # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    # print(len(node_feats))
+    # print(len(edge_feats))
     node_feats = self.embedding(node_feats)
 
     # convolutional layer

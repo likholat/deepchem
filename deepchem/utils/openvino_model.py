@@ -90,6 +90,10 @@ class OpenVINOModel:
 
     buf = io.BytesIO()
     inp = torch.randn(inp_shape)
+    # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111111111111111")
+    # print(self._torch_model.model)
+    inp = [torch.randn([92], dtype=torch.float32), torch.randn([41], dtype=torch.float32)]
+
     torch.onnx.export(self._torch_model.model, inp, buf, opset_version=11)
 
     # Import network from memory buffer
@@ -106,7 +110,28 @@ class OpenVINOModel:
     # Freeze Keras model
     model = self._keras_model.model
     func = tf.function(lambda x: model(x))
+
+    # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!111111!!!!!!!!!!!!!!11')
+    # print(type(self._keras_model.model))
+
+    # from deepchem.feat.mol_graphs import ConvMol
+
+    # multiConvMol = ConvMol.z(10)
+    # inputs = [
+    #         multiConvMol.get_atom_features(), multiConvMol.deg_slice,
+    #         np.array(multiConvMol.membership), 10
+    #     ]
+    
+    # from deepchem.feat.mol_graphs import ConvMol
+    # func = func.get_concrete_function([ConvMol.get_null_mol(10), ConvMol.get_null_mol(10)])
     func = func.get_concrete_function(model.inputs)
+
+    x = tf.zeros([3,4], tf.int32)
+    y = tf.zeros([1], tf.int32)
+    z = tf.zeros([1], tf.int32)
+    f = tf.zeros([1], tf.int32)
+
+    # func = func.get_concrete_function(x)           
     frozen_func = convert_variables_to_constants_v2(func)
     graph_def = frozen_func.graph.as_graph_def()
 
