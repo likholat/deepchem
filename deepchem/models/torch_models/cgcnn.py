@@ -227,33 +227,41 @@ class CGCNN(nn.Module):
 
     if type(dgl_graph) == list:
       graph = self.graph
-      
       node_feats = dgl_graph[0]
       edge_feats = dgl_graph[1]
-      print('000000000000000000000000000000000')
-      # print(node_feats)
+      print('Input is list!')
     else:
       graph = dgl_graph
       node_feats = graph.ndata.pop('x')
       edge_feats = graph.edata.pop('edge_attr')
-      print('111111111111111111111111111111111111')
-      # print(node_feats)
 
-    print('1')
+    
     node_feats = self.embedding(node_feats)
     
-
     # convolutional layer
     for conv in self.conv_layers:
       node_feats = conv(graph, node_feats, edge_feats)
 
     # pooling
     graph.ndata['updated_x'] = node_feats
+
+    pool = self.pooling(graph, 'updated_x')
     
-    graph_feat = F.softplus(self.pooling(graph, 'updated_x'))
-    print('2')
+    data = graph.ndata['updated_x'].detach().numpy()
+    seglen = tuple(graph.batch_num_nodes(None).detach().numpy())
+    value = torch.tensor(data, dtype=torch.float)
+    value = torch.split(value, seglen)
+
+    mean_res = []
+    for inp in value:
+        mean = torch.mean(inp, 0)
+        mean_res.append(mean.detach().numpy())
+    mean_res = torch.tensor(mean_res)
+
+    #return True
+    print(torch.equal(pool,mean_res))
+    graph_feat = F.softplus(mean_res)
     graph_feat = F.softplus(self.fc(graph_feat))
-    print('3')
     out = self.out(graph_feat)
 
     if self.mode == 'regression':
