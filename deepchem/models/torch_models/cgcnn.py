@@ -223,12 +223,10 @@ class CGCNN(nn.Module):
       If mode == 'classification', the shape is `(batch_size, n_tasks, n_classes)` (n_tasks > 1)
       or `(batch_size, n_classes)` (n_tasks == 1) and the output values are probabilities of each class label.
     """
-    
     if type(dgl_graph) == list:
       graph = self.graph
       node_feats = dgl_graph[0]
       edge_feats = dgl_graph[1]
-      print('Input is list!')
     else:
       graph = dgl_graph
       node_feats = graph.ndata.pop('x')
@@ -251,10 +249,6 @@ class CGCNN(nn.Module):
         mean = torch.mean(inp, 0)
         mean_res.append(mean)
     mean_res = torch.stack(mean_res)
-
-    # pool = self.pooling(graph, 'updated_x')
-    # # return True
-    # print(torch.equal(pool,mean_res))
 
     graph_feat = F.softplus(mean_res)
     graph_feat = F.softplus(self.fc(graph_feat))
@@ -343,6 +337,8 @@ class CGCNNModel(TorchModel):
     """
     model = CGCNN(in_node_dim, hidden_node_dim, in_edge_dim, num_conv,
                   predictor_hidden_feats, n_tasks, mode, n_classes)
+    self.gcgnn = model
+
     if mode == "regression":
       loss: Loss = L2Loss()
       output_types = ['prediction']

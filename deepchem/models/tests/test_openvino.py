@@ -10,75 +10,46 @@ from deepchem.models.torch_models import TorchModel
 
 from os import path, remove
 
-# def test_graph_conv_model():
-#   graph_conv_tasks, graph_conv_dataset, transformers = load_bace_classification('GraphConv')
-#   _, valid_dataset, _ = graph_conv_dataset
-
-#   metric = dc.metrics.Metric(dc.metrics.roc_auc_score, np.mean, mode="classification")
-
-#   def init(**kwargs):
-#     return dc.models.GraphConvModel(
-#         len(graph_conv_tasks),
-#         batch_size=10,
-#         batch_normalize=False,
-#         mode='classification',
-#         **kwargs)
-
-#   ref_model = init()
-#   model = init(use_openvino=True)
-
-#   ref_scores = ref_model.evaluate(valid_dataset, [metric], transformers)
-#   print(metric)
-
-#   scores = model.evaluate(valid_dataset, [metric], transformers)
-
-#   print(scores['mean-roc_auc_score'])
-#   print(ref_scores['mean-roc_auc_score'])
-
-#   assert model._openvino_model.is_available()
-#   assert scores['mean-roc_auc_score'] == pytest.approx(
-#       ref_scores['mean-roc_auc_score'], 1e-5)
-
-# def test_cgcnn():
-#   # load datasets
-#   current_dir = path.dirname(path.abspath(__file__))
-#   config = {
-#       "reload": False,
-#       "featurizer": dc.feat.CGCNNFeaturizer(),
-#       # disable transformer
-#       "transformers": [],
-#       "data_dir": current_dir
-#   }
+def test_cgcnn():
+  # load datasets
+  current_dir = path.dirname(path.abspath(__file__))
+  config = {
+      "reload": False,
+      "featurizer": dc.feat.CGCNNFeaturizer(),
+      # disable transformer
+      "transformers": [],
+      "data_dir": current_dir
+  }
  
-#   tasks, datasets, transformers = load_perovskite(**config)
-#   train, valid, _ = datasets
+  tasks, datasets, transformers = load_perovskite(**config)
+  train, valid, _ = datasets
 
-#   n_tasks = len(tasks)
+  n_tasks = len(tasks)
 
-#   def init(**kwargs):
-# #     tf.random.set_seed(572)
-#     return dc.models.CGCNNModel(
-#         n_tasks=n_tasks,
-#         mode='regression',
-#         batch_size=4,
-#         learning_rate=0.001,
-#         **kwargs)
+  def init(**kwargs):
+#     tf.random.set_seed(572)
+    return dc.models.CGCNNModel(
+        n_tasks=n_tasks,
+        mode='regression',
+        batch_size=4,
+        learning_rate=0.001,
+        **kwargs)
 
-#   ref_model = init()
-#   model = init(use_openvino=True)
+  ref_model = init()
+  model = init(use_openvino=True)
 
-#   # check predict shape
-#   valid_preds = ref_model.predict_on_batch(valid.X)
-#   assert valid_preds.shape == (2, n_tasks)
+  # check predict shape
+  valid_preds = ref_model.predict_on_batch(valid.X)
+  assert valid_preds.shape == (2, n_tasks)
 
-#    # check overfit
-#   metric = dc.metrics.Metric(dc.metrics.mae_score, n_tasks=n_tasks)
-#   ref_scores = ref_model.evaluate(train, [metric], transformers)
-#   scores = model.evaluate(train, [metric], transformers)
-#   # assert ref_scores[regression_metric.name] < 0.6
+   # check overfit
+  metric = dc.metrics.Metric(dc.metrics.mae_score, n_tasks=n_tasks)
+  ref_scores = ref_model.evaluate(train, [metric], transformers)
+  scores = model.evaluate(train, [metric], transformers)
+  # assert ref_scores[regression_metric.name] < 0.6
 
-#   if path.exists(path.join(current_dir, 'perovskite.json')):
-#     remove(path.join(current_dir, 'perovskite.json'))
+  if path.exists(path.join(current_dir, 'perovskite.json')):
+    remove(path.join(current_dir, 'perovskite.json'))
 
 
 def test_tox21_tf_progressive():

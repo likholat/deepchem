@@ -79,35 +79,35 @@ class OpenVINOModel:
     NOTE: We do not load model in __init__ method because of training.
     """
     import torch
+    from deepchem.models.torch_models.cgcnn import CGCNNModel
 
-    # We need to serialize ONNX model with real input shape.
-    # So we create a copy of the generator to take first input.
-    generator_copy, generator = itertools.tee(generator, 2)
-    inputs, _, _ = next(generator_copy)
-    assert (len(inputs) == 1), 'Not implemented'
-    inp_shape = list(inputs[0].shape)
-    inp_shape[0] = self._batch_size
+    if(type(self._torch_model) == CGCNNModel):
+      for batch in generator:
+        inputs, labels, weights = batch
+        inputs, _, _ = self._torch_model._prepare_batch((inputs, None, None))
 
-    # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    # if isinstance(inputs, list):
-    #     inputs = inputs[0]
-    # print(self._torch_model.graph)
+      self._torch_model.gcgnn.graph = inputs
+
+      node_feats = inputs.ndata.pop('x')
+      edge_feats = inputs.edata.pop('edge_attr')
+      inp = [node_feats, edge_feats]
+    else:
+      # We need to serialize ONNX model with real input shape.
+      # So we create a copy of the generator to take first input.
+      generator_copy, generator = itertools.tee(generator, 2)
+      inputs, _, _ = next(generator_copy)
+      assert (len(inputs) == 1), 'Not implemented'
+
+      inp_shape = list(inputs[0].shape)
+      inp_shape[0] = self._batch_size
+      inp = torch.randn(inp_shape)
 
     buf = io.BytesIO()
-    inp = torch.randn(inp_shape)
-
-    # node_feats = inputs.ndata.pop('x')
-    # edge_feats = inputs.edata.pop('edge_attr')
-    # inp = [node_feats, edge_feats]
-
-    # self.model.graph = inputs
-    # inp = [torch.randn([92], dtype=torch.float32), torch.randn([41], dtype=torch.float32)]
-
     torch.onnx.export(self._torch_model.model, inp, buf, opset_version=11)
 
     # Import network from memory buffer
     return self._ie.read_network(buf.getvalue(), b'', init_from_buffer=True), \
-           generator         
+           generator
 
   def _read_tf_model(self):
     """
@@ -119,23 +119,7 @@ class OpenVINOModel:
     # Freeze Keras model
     model = self._keras_model.model
     func = tf.function(lambda x: model(x))
-
-    # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!111111!!!!!!!!!!!!!!11')
-    # print(type(self._keras_model.model))
-
-    # from deepchem.feat.mol_graphs import ConvMol
-
-    # multiConvMol = ConvMol.z(10)
-    # inputs = [
-    #         multiConvMol.get_atom_features(), multiConvMol.deg_slice,
-    #         np.array(multiConvMol.membership), 10
-    #     ]
-    
-    # from deepchem.feat.mol_graphs import ConvMol
-    # func = func.get_concrete_function([ConvMol.get_null_mol(10), ConvMol.get_null_mol(10)])
     func = func.get_concrete_function(model.inputs)
-
-    # func = func.get_concrete_function(x)           
     frozen_func = convert_variables_to_constants_v2(func)
     graph_def = frozen_func.graph.as_graph_def()
 
@@ -180,9 +164,6 @@ class OpenVINOModel:
     Iterable[Tuple[Any, Any, Any]]
       A copy of the generator whih starts from the beginning.
     """
-
-    print('LOAD MODEL')
-    print(self)
     assert (self.is_available())
     if self._keras_model is not None:
       net = self._read_tf_model()

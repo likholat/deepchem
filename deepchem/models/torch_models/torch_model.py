@@ -542,18 +542,6 @@ class TorchModel(Model):
       else:
         output_values = self.model(inputs)
 
-        # convert model
-        # node_feats = inputs.ndata.pop('x')
-        # edge_feats = inputs.edata.pop('edge_attr')
-        # inp = [node_feats, edge_feats]
-
-        # self.model.graph = inputs
-        # output_values = self.model(inp)
-
-        # import io
-        # buf = io.BytesIO()
-        # torch.onnx.export(self.model, inp, buf, opset_version=11)
-
       if isinstance(output_values, torch.Tensor):
         output_values = [output_values]
       output_values = [t.detach().cpu().numpy() for t in output_values]
