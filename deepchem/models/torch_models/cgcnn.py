@@ -224,7 +224,6 @@ class CGCNN(nn.Module):
       or `(batch_size, n_classes)` (n_tasks == 1) and the output values are probabilities of each class label.
     """
     
-
     if type(dgl_graph) == list:
       graph = self.graph
       node_feats = dgl_graph[0]
@@ -235,7 +234,6 @@ class CGCNN(nn.Module):
       node_feats = graph.ndata.pop('x')
       edge_feats = graph.edata.pop('edge_attr')
 
-    
     node_feats = self.embedding(node_feats)
     
     # convolutional layer
@@ -244,22 +242,20 @@ class CGCNN(nn.Module):
 
     # pooling
     graph.ndata['updated_x'] = node_feats
-
-    pool = self.pooling(graph, 'updated_x')
     
-    data = graph.ndata['updated_x'].detach().numpy()
     seglen = tuple(graph.batch_num_nodes(None).detach().numpy())
-    value = torch.tensor(data, dtype=torch.float)
-    value = torch.split(value, seglen)
+    value = torch.split(graph.ndata['updated_x'], seglen)
 
     mean_res = []
     for inp in value:
         mean = torch.mean(inp, 0)
-        mean_res.append(mean.detach().numpy())
-    mean_res = torch.tensor(mean_res)
+        mean_res.append(mean)
+    mean_res = torch.stack(mean_res)
 
-    #return True
-    print(torch.equal(pool,mean_res))
+    # pool = self.pooling(graph, 'updated_x')
+    # # return True
+    # print(torch.equal(pool,mean_res))
+
     graph_feat = F.softplus(mean_res)
     graph_feat = F.softplus(self.fc(graph_feat))
     out = self.out(graph_feat)

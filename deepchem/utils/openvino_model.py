@@ -88,11 +88,20 @@ class OpenVINOModel:
     inp_shape = list(inputs[0].shape)
     inp_shape[0] = self._batch_size
 
+    # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    # if isinstance(inputs, list):
+    #     inputs = inputs[0]
+    # print(self._torch_model.graph)
+
     buf = io.BytesIO()
     inp = torch.randn(inp_shape)
-    # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111111111111111")
-    # print(self._torch_model.model)
-    inp = [torch.randn([92], dtype=torch.float32), torch.randn([41], dtype=torch.float32)]
+
+    # node_feats = inputs.ndata.pop('x')
+    # edge_feats = inputs.edata.pop('edge_attr')
+    # inp = [node_feats, edge_feats]
+
+    # self.model.graph = inputs
+    # inp = [torch.randn([92], dtype=torch.float32), torch.randn([41], dtype=torch.float32)]
 
     torch.onnx.export(self._torch_model.model, inp, buf, opset_version=11)
 
@@ -125,11 +134,6 @@ class OpenVINOModel:
     # from deepchem.feat.mol_graphs import ConvMol
     # func = func.get_concrete_function([ConvMol.get_null_mol(10), ConvMol.get_null_mol(10)])
     func = func.get_concrete_function(model.inputs)
-
-    x = tf.zeros([3,4], tf.int32)
-    y = tf.zeros([1], tf.int32)
-    z = tf.zeros([1], tf.int32)
-    f = tf.zeros([1], tf.int32)
 
     # func = func.get_concrete_function(x)           
     frozen_func = convert_variables_to_constants_v2(func)
@@ -176,6 +180,9 @@ class OpenVINOModel:
     Iterable[Tuple[Any, Any, Any]]
       A copy of the generator whih starts from the beginning.
     """
+
+    print('LOAD MODEL')
+    print(self)
     assert (self.is_available())
     if self._keras_model is not None:
       net = self._read_tf_model()
