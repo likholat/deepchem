@@ -201,17 +201,15 @@ class OpenVINOModel:
     if not self._exec_net:
       generator = self._load_model(generator)
 
-
     # assert (len(self._exec_net.input_info) == 1), 'Not implemented'
     assert (len(self._exec_net.outputs) == 1), 'Not implemented'
-    if len(self._exec_net.input_info) == 1:
-      inp_name = next(iter(self._exec_net.input_info.keys()))
-    elif len(self._exec_net.input_info) > 1:
-      inp_name = []
-      for name in list(self._exec_net.input_info.keys()):
-        inp_name.append(name)
+    inp_name = []
+    for name in list(self._exec_net.input_info.keys()):
+      inp_name.append(name)
 
     out_name = next(iter(self._exec_net.outputs.keys()))
+    print('OUT_NAME')
+    print(out_name) # 298
 
     infer_request_input_id = [-1] * len(self._exec_net.requests)
 
@@ -277,10 +275,13 @@ class OpenVINOModel:
 
       self._outputs.append(None)
 
-      if type(inp_name) == list:
+      print('OUTPUT_BLOBS')
+      print(request.output_blobs) #{'298': <openvino.inference_engine.ie_api.Blob object at 0x7f42d0373dc0>}
+
+      if len(inp_name) > 1:
         request.async_infer(dict(zip(inp_name, inputs)))
       else:
-        request.async_infer({inp_name: inputs})
+        request.async_infer({inp_name[0]: inputs})
 
     # Copy rest of outputs
     status = self._exec_net.wait()
@@ -289,6 +290,9 @@ class OpenVINOModel:
     for infer_request_id, out_id in enumerate(infer_request_input_id):
       if self._outputs[out_id] is None:
         request = self._exec_net.requests[infer_request_id]
+
+        # print('OUT_BLOBS')
+        # print(request.output_blobs)
         output = request.output_blobs[out_name].buffer
 
         print('OUTPUT IS')
