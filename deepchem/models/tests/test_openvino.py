@@ -27,11 +27,10 @@ def test_cgcnn():
   n_tasks = len(tasks)
 
   def init(**kwargs):
-#     tf.random.set_seed(572)
     return dc.models.CGCNNModel(
         n_tasks=n_tasks,
         mode='regression',
-        batch_size=4,
+        batch_size=1,
         learning_rate=0.001,
         **kwargs)
 

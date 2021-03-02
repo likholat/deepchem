@@ -6,6 +6,7 @@ on:
   pull_request: # ci work when creating a PR to master branch
     branches:
       - master
+      - openvino
 jobs:
   build:
     runs-on: ubuntu-latest

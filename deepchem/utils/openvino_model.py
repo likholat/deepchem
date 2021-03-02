@@ -81,23 +81,27 @@ class OpenVINOModel:
     import torch
     from deepchem.models.torch_models.cgcnn import CGCNNModel
 
-    if(type(self._torch_model) == CGCNNModel):
-      for batch in generator:
-        inputs, labels, weights = batch
-        inputs, _, _ = self._torch_model._prepare_batch((inputs, None, None))
+    generator_copy, generator = itertools.tee(generator, 2)
 
+    # list with array of objects deepchem.feat.graph_data.GraphData (len 4)
+    inputs, _, _ = next(generator_copy)
+
+    if(type(self._torch_model) == CGCNNModel):
+      # Create Graph object
+      inputs, _, _ = self._torch_model._prepare_batch((inputs, None, None))
       self._torch_model.gcgnn.graph = inputs
 
       node_feats = inputs.ndata.pop('x')
       edge_feats = inputs.edata.pop('edge_attr')
       inp = [node_feats, edge_feats]
+      print('11111111111111111111111111111111111')
+      print(node_feats.shape)
+      print(edge_feats.shape)
     else:
       # We need to serialize ONNX model with real input shape.
       # So we create a copy of the generator to take first input.
-      generator_copy, generator = itertools.tee(generator, 2)
-      inputs, _, _ = next(generator_copy)
       assert (len(inputs) == 1), 'Not implemented'
-
+  
       inp_shape = list(inputs[0].shape)
       inp_shape[0] = self._batch_size
       inp = torch.randn(inp_shape)
@@ -176,6 +180,7 @@ class OpenVINOModel:
         'CPU',
         config={'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO'},
         num_requests=0)
+
     return generator
 
   def __call__(self, generator: Iterable[Tuple[Any, Any, Any]]):
@@ -196,16 +201,24 @@ class OpenVINOModel:
     if not self._exec_net:
       generator = self._load_model(generator)
 
-    assert (len(self._exec_net.input_info) == 1), 'Not implemented'
+
+    # assert (len(self._exec_net.input_info) == 1), 'Not implemented'
     assert (len(self._exec_net.outputs) == 1), 'Not implemented'
-    inp_name = next(iter(self._exec_net.input_info.keys()))
+    if len(self._exec_net.input_info) == 1:
+      inp_name = next(iter(self._exec_net.input_info.keys()))
+    elif len(self._exec_net.input_info) > 1:
+      inp_name = []
+      for name in list(self._exec_net.input_info.keys()):
+        inp_name.append(name)
+
     out_name = next(iter(self._exec_net.outputs.keys()))
 
     infer_request_input_id = [-1] * len(self._exec_net.requests)
 
     # Create a copy of the generator so the origin one can iterate again.
+    from deepchem.models.torch_models.cgcnn import CGCNNModel
     generator_copy, generator = itertools.tee(generator, 2)
-
+  
     for inp_id, batch in enumerate(generator_copy):
       inputs, labels, weights = batch
       if self._keras_model is not None:
@@ -213,17 +226,35 @@ class OpenVINOModel:
         inputs, _, _ = self._keras_model._prepare_batch((inputs, None, None))
       elif self._torch_model is not None:
         inputs, _, _ = self._torch_model._prepare_batch((inputs, None, None))
-      inputs = inputs[0]
 
-      # Last batch size may be less or equal than overall batch size.
-      # Pad extra values by zeros and cut at the end.
-      last_batch_size = inputs.shape[0]
-      if last_batch_size != self._batch_size:
-        assert (last_batch_size < self._batch_size)
-        inp = np.zeros(
-            [self._batch_size] + list(inputs.shape[1:]), dtype=np.float32)
-        inp[:last_batch_size] = inputs
-        inputs = inp
+      if(type(self._torch_model) == CGCNNModel):
+        self._torch_model.gcgnn.graph = inputs
+
+        node_feats = inputs.ndata.pop('x')
+        edge_feats = inputs.edata.pop('edge_attr')
+        inputs = [node_feats, edge_feats]
+
+        last_batch_size = 1 # i'll fix it later
+      else:
+        inputs = inputs[0]
+
+        # Last batch size may be less or equal than overall batch size.
+        # Pad extra values by zeros and cut at the end.
+        last_batch_size = inputs.shape[0]
+        
+        if last_batch_size != self._batch_size:
+          assert (last_batch_size < self._batch_size)
+          inp = np.zeros(
+              [self._batch_size] + list(inputs.shape[1:]), dtype=np.float32)
+          inp[:last_batch_size] = inputs
+          inputs = inp
+
+      print('INPUT SHAPES')
+      print(inputs[0].shape) # always torch.Size([5, 92])
+      print(inputs[1].shape) # always torch.Size([60, 41])
+
+      # print(last_batch_size)
+      # print(self._batch_size)
 
       # Get idle infer request
       infer_request_id = self._exec_net.get_idle_request_id()
@@ -245,7 +276,11 @@ class OpenVINOModel:
       infer_request_input_id[infer_request_id] = inp_id
 
       self._outputs.append(None)
-      request.async_infer({inp_name: inputs})
+
+      if type(inp_name) == list:
+        request.async_infer(dict(zip(inp_name, inputs)))
+      else:
+        request.async_infer({inp_name: inputs})
 
     # Copy rest of outputs
     status = self._exec_net.wait()
@@ -255,10 +290,17 @@ class OpenVINOModel:
       if self._outputs[out_id] is None:
         request = self._exec_net.requests[infer_request_id]
         output = request.output_blobs[out_name].buffer
+
+        print('OUTPUT IS')
+        print(output) # all are [[nan]]
+
         if out_id == len(self._outputs) - 1:
           self._outputs[out_id] = output[:last_batch_size]
         else:
           self._outputs[out_id] = output
+
+    print('END')
+    print(self._outputs)
 
     return self, generator
 

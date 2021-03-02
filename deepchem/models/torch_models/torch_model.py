@@ -529,7 +529,7 @@ class TorchModel(Model):
 
     if self._use_openvino:
       openvino_predictions, generator = self._openvino_model(generator)
-
+      
     for batch in generator:
       inputs, labels, weights = batch
       inputs, _, _ = self._prepare_batch((inputs, None, None))
