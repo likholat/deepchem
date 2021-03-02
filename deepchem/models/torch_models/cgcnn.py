@@ -187,8 +187,6 @@ class CGCNN(nn.Module):
     if mode not in ['classification', 'regression']:
       raise ValueError("mode must be either 'classification' or 'regression'")
 
-    self.graph = None
-
     self.n_tasks = n_tasks
     self.mode = mode
     self.n_classes = n_classes
@@ -223,14 +221,9 @@ class CGCNN(nn.Module):
       If mode == 'classification', the shape is `(batch_size, n_tasks, n_classes)` (n_tasks > 1)
       or `(batch_size, n_classes)` (n_tasks == 1) and the output values are probabilities of each class label.
     """
-    if type(dgl_graph) == list:
-      graph = self.graph
-      node_feats = dgl_graph[0]
-      edge_feats = dgl_graph[1]
-    else:
-      graph = dgl_graph
-      node_feats = graph.ndata.pop('x')
-      edge_feats = graph.edata.pop('edge_attr')
+    graph = dgl_graph
+    node_feats = graph.ndata.pop('x')
+    edge_feats = graph.edata.pop('edge_attr')
 
     node_feats = self.embedding(node_feats)
     
@@ -244,13 +237,7 @@ class CGCNN(nn.Module):
     seglen = tuple(graph.batch_num_nodes(None).detach().numpy())
     value = torch.split(graph.ndata['updated_x'], seglen)
 
-    mean_res = []
-    for inp in value:
-        mean = torch.mean(inp, 0)
-        mean_res.append(mean)
-    mean_res = torch.stack(mean_res)
-
-    graph_feat = F.softplus(mean_res)
+    graph_feat = F.softplus(self.pooling(graph, 'updated_x'))
     graph_feat = F.softplus(self.fc(graph_feat))
     out = self.out(graph_feat)
 
@@ -262,6 +249,53 @@ class CGCNN(nn.Module):
       logits = torch.squeeze(logits)
       proba = F.softmax(logits)
       return proba, logits
+
+class CGCNN_OV(CGCNN):
+  """Version of Crystal Graph Convolutional Neural Network (CGCNN) adapted for conversion to IR.
+  """
+
+  def __init__(self, in_node_dim, hidden_node_dim, in_edge_dim,
+                num_conv, predictor_hidden_feats, n_tasks, mode, n_classes
+    ):
+    super().__init__(in_node_dim, hidden_node_dim, in_edge_dim,
+                      num_conv, predictor_hidden_feats, n_tasks, mode, n_classes)
+    self.graph = None
+  
+  def forward(self, inputs):
+      graph = self.graph
+      node_feats = inputs[0]
+      edge_feats = inputs[1]
+
+      node_feats = self.embedding(node_feats)
+      
+      # convolutional layer
+      for conv in self.conv_layers:
+        node_feats = conv(graph, node_feats, edge_feats)
+
+      # pooling
+      graph.ndata['updated_x'] = node_feats
+      
+      seglen = tuple(graph.batch_num_nodes(None).detach().numpy())
+      value = torch.split(graph.ndata['updated_x'], seglen)
+
+      mean_res = []
+      for inp in value:
+          mean = torch.mean(inp, 0)
+          mean_res.append(mean)
+      mean_res = torch.stack(mean_res)
+
+      graph_feat = F.softplus(mean_res)
+      graph_feat = F.softplus(self.fc(graph_feat))
+      out = self.out(graph_feat)
+
+      if self.mode == 'regression':
+        return out
+      else:
+        logits = out.view(-1, self.n_tasks, self.n_classes)
+        # for n_tasks == 1 case
+        logits = torch.squeeze(logits)
+        proba = F.softmax(logits)
+        return proba, logits
 
 
 class CGCNNModel(TorchModel):
@@ -335,10 +369,14 @@ class CGCNNModel(TorchModel):
     kwargs: Dict
       This class accepts all the keyword arguments from TorchModel.
     """
-    model = CGCNN(in_node_dim, hidden_node_dim, in_edge_dim, num_conv,
+    if kwargs.get('use_openvino', False):
+      model = CGCNN_OV(in_node_dim, hidden_node_dim, in_edge_dim, num_conv,
                   predictor_hidden_feats, n_tasks, mode, n_classes)
-    self.gcgnn = model
-
+      self.gcgnn = model
+    else:
+      model = CGCNN(in_node_dim, hidden_node_dim, in_edge_dim, num_conv,
+                  predictor_hidden_feats, n_tasks, mode, n_classes)
+    
     if mode == "regression":
       loss: Loss = L2Loss()
       output_types = ['prediction']

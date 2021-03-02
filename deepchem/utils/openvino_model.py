@@ -94,9 +94,6 @@ class OpenVINOModel:
       node_feats = inputs.ndata.pop('x')
       edge_feats = inputs.edata.pop('edge_attr')
       inp = [node_feats, edge_feats]
-      print('11111111111111111111111111111111111')
-      print(node_feats.shape)
-      print(edge_feats.shape)
     else:
       # We need to serialize ONNX model with real input shape.
       # So we create a copy of the generator to take first input.
@@ -276,7 +273,7 @@ class OpenVINOModel:
       self._outputs.append(None)
 
       print('OUTPUT_BLOBS')
-      print(request.output_blobs) #{'298': <openvino.inference_engine.ie_api.Blob object at 0x7f42d0373dc0>}
+      print(request.output_blobs) # {'298': <openvino.inference_engine.ie_api.Blob object at 0x7f42d0373dc0>}
 
       if len(inp_name) > 1:
         request.async_infer(dict(zip(inp_name, inputs)))
