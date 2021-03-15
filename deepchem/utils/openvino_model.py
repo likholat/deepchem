@@ -71,9 +71,6 @@ class OpenVINOModel:
     self._batch_size = batch_size
     self._outputs: List = []
 
-    self.function = None
-    self.add_out = False
-
   def _read_torch_model(self, generator: Iterable[Tuple[Any, Any, Any]]):
     """
     Prepare PyTorch model for OpenVINO inference:
@@ -174,21 +171,6 @@ class OpenVINOModel:
     elif self._torch_model is not None:
       net, generator = self._read_torch_model(generator)
 
-    if self.add_out:
-      nodes = []
-      import ngraph as ng
-      self.function = ng.function_from_cnn(net)
-
-      for node in self.function.get_ordered_ops():
-        try:
-          int(node.get_friendly_name())
-        except:
-          if not 'Const' in node.get_friendly_name():
-            nodes.append(node.get_friendly_name())
-            print(node)
-      net.add_outputs(nodes)
-
-
     # Load network to the device
     self._exec_net = self._ie.load_network(
         net,
@@ -247,7 +229,6 @@ class OpenVINOModel:
 
         node_feats = inputs.ndata.pop('x')
         edge_feats = inputs.edata.pop('edge_attr')
-
         inputs = [node_feats, edge_feats]
 
         last_batch_size = 1 # i'll fix it later
@@ -264,10 +245,6 @@ class OpenVINOModel:
               [self._batch_size] + list(inputs.shape[1:]), dtype=np.float32)
           inp[:last_batch_size] = inputs
           inputs = inp
-
-      # print('INPUT SHAPES')
-      # print(inputs[0].shape) # always torch.Size([5, 92])
-      # print(inputs[1].shape) # always torch.Size([60, 41])
 
       # Get idle infer request
       infer_request_id = self._exec_net.get_idle_request_id()
