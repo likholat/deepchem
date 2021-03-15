@@ -226,6 +226,8 @@ class CGCNN(nn.Module):
     edge_feats = graph.edata.pop('edge_attr')
 
     node_feats = self.embedding(node_feats)
+
+    lout = node_feats
     
     # convolutional layer
     for conv in self.conv_layers:
@@ -233,16 +235,12 @@ class CGCNN(nn.Module):
 
     # pooling
     graph.ndata['updated_x'] = node_feats
-    
-    seglen = tuple(graph.batch_num_nodes(None).detach().numpy())
-    value = torch.split(graph.ndata['updated_x'], seglen)
-
     graph_feat = F.softplus(self.pooling(graph, 'updated_x'))
     graph_feat = F.softplus(self.fc(graph_feat))
     out = self.out(graph_feat)
 
     if self.mode == 'regression':
-      return out
+      return out, lout
     else:
       logits = out.view(-1, self.n_tasks, self.n_classes)
       # for n_tasks == 1 case
@@ -267,7 +265,12 @@ class CGCNN_OV(CGCNN):
       edge_feats = inputs[1]
 
       node_feats = self.embedding(node_feats)
-      
+
+      lout = node_feats
+
+      # import numpy as np
+      # np.savetxt('node_feats.txt', node_feats.detach().numpy())
+
       # convolutional layer
       for conv in self.conv_layers:
         node_feats = conv(graph, node_feats, edge_feats)
@@ -289,7 +292,7 @@ class CGCNN_OV(CGCNN):
       out = self.out(graph_feat)
 
       if self.mode == 'regression':
-        return out
+        return out, lout
       else:
         logits = out.view(-1, self.n_tasks, self.n_classes)
         # for n_tasks == 1 case

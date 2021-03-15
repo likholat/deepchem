@@ -539,8 +539,17 @@ class TorchModel(Model):
         inputs = inputs[0]
       if self._use_openvino:
         output_values = [torch.Tensor(next(openvino_predictions))]
+        print('OV RES')
+        print(output_values[0].detach().numpy().shape)
+        np.savetxt('my_res.txt', output_values[0].detach().numpy())
       else:
         output_values = self.model(inputs)
+
+        print('TORCH RES')
+        np.savetxt('torch_res.txt', output_values[1].detach().numpy())
+        print(output_values[1].detach().numpy().shape)
+
+        output_values = output_values[0]
 
       if isinstance(output_values, torch.Tensor):
         output_values = [output_values]

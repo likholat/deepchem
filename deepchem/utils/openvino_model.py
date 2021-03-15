@@ -71,6 +71,9 @@ class OpenVINOModel:
     self._batch_size = batch_size
     self._outputs: List = []
 
+    self.function = None
+    self.add_out = False
+
   def _read_torch_model(self, generator: Iterable[Tuple[Any, Any, Any]]):
     """
     Prepare PyTorch model for OpenVINO inference:
@@ -171,6 +174,21 @@ class OpenVINOModel:
     elif self._torch_model is not None:
       net, generator = self._read_torch_model(generator)
 
+    if self.add_out:
+      nodes = []
+      import ngraph as ng
+      self.function = ng.function_from_cnn(net)
+
+      for node in self.function.get_ordered_ops():
+        try:
+          int(node.get_friendly_name())
+        except:
+          if not 'Const' in node.get_friendly_name():
+            nodes.append(node.get_friendly_name())
+            print(node)
+      net.add_outputs(nodes)
+
+
     # Load network to the device
     self._exec_net = self._ie.load_network(
         net,
@@ -199,14 +217,16 @@ class OpenVINOModel:
       generator = self._load_model(generator)
 
     # assert (len(self._exec_net.input_info) == 1), 'Not implemented'
-    assert (len(self._exec_net.outputs) == 1), 'Not implemented'
+    # assert (len(self._exec_net.outputs) == 1), 'Not implemented'
     inp_name = []
     for name in list(self._exec_net.input_info.keys()):
       inp_name.append(name)
 
-    out_name = next(iter(self._exec_net.outputs.keys()))
-    print('OUT_NAME')
-    print(out_name) # 298
+    # out_name = next(iter(self._exec_net.outputs.keys()))
+
+    out_name = []
+    for name in list(self._exec_net.outputs.keys()):
+      out_name.append(name)
 
     infer_request_input_id = [-1] * len(self._exec_net.requests)
 
@@ -227,6 +247,7 @@ class OpenVINOModel:
 
         node_feats = inputs.ndata.pop('x')
         edge_feats = inputs.edata.pop('edge_attr')
+
         inputs = [node_feats, edge_feats]
 
         last_batch_size = 1 # i'll fix it later
@@ -244,12 +265,9 @@ class OpenVINOModel:
           inp[:last_batch_size] = inputs
           inputs = inp
 
-      print('INPUT SHAPES')
-      print(inputs[0].shape) # always torch.Size([5, 92])
-      print(inputs[1].shape) # always torch.Size([60, 41])
-
-      # print(last_batch_size)
-      # print(self._batch_size)
+      # print('INPUT SHAPES')
+      # print(inputs[0].shape) # always torch.Size([5, 92])
+      # print(inputs[1].shape) # always torch.Size([60, 41])
 
       # Get idle infer request
       infer_request_id = self._exec_net.get_idle_request_id()
@@ -266,14 +284,11 @@ class OpenVINOModel:
 
       # Copy output prediction (if already started)
       if out_id != -1:
-        self._outputs[out_id] = request.output_blobs[out_name].buffer
+        self._outputs[out_id] = request.output_blobs[out_name[0]].buffer
 
       infer_request_input_id[infer_request_id] = inp_id
 
       self._outputs.append(None)
-
-      print('OUTPUT_BLOBS')
-      print(request.output_blobs) # {'298': <openvino.inference_engine.ie_api.Blob object at 0x7f42d0373dc0>}
 
       if len(inp_name) > 1:
         request.async_infer(dict(zip(inp_name, inputs)))
@@ -288,20 +303,22 @@ class OpenVINOModel:
       if self._outputs[out_id] is None:
         request = self._exec_net.requests[infer_request_id]
 
-        # print('OUT_BLOBS')
-        # print(request.output_blobs)
-        output = request.output_blobs[out_name].buffer
+        output1 = request.output_blobs[out_name[0]].buffer
+        output = request.output_blobs[out_name[1]].buffer
 
-        print('OUTPUT IS')
-        print(output) # all are [[nan]]
+        print('OV OUTPUT')
+        # print(output1)
+        import numpy as np
+        np.savetxt('ov_res.txt', output1)
+        print(output1.shape)
+
+        # print('OUTPUT IS')
+        # print(output) # all are [[nan]]
 
         if out_id == len(self._outputs) - 1:
           self._outputs[out_id] = output[:last_batch_size]
         else:
           self._outputs[out_id] = output
-
-    print('END')
-    print(self._outputs)
 
     return self, generator
 
