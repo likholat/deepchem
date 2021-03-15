@@ -11,6 +11,9 @@ from deepchem.models.torch_models import TorchModel
 from os import path, remove
 
 def test_cgcnn():
+  np.random.seed(123)
+  torch.manual_seed(124)
+
   # load datasets
   current_dir = path.dirname(path.abspath(__file__))
   config = {
@@ -23,12 +26,10 @@ def test_cgcnn():
  
   tasks, datasets, transformers = load_perovskite(**config)
   train, valid, _ = datasets
-
-  print(train)
-
   n_tasks = len(tasks)
 
   def init(**kwargs):
+    torch.manual_seed(572)
     return dc.models.CGCNNModel(
         n_tasks=n_tasks,
         mode='regression',
