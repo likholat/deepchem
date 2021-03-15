@@ -224,7 +224,6 @@ class CGCNN(nn.Module):
     graph = dgl_graph
     node_feats = graph.ndata.pop('x')
     edge_feats = graph.edata.pop('edge_attr')
-
     node_feats = self.embedding(node_feats)
 
     lout = node_feats
@@ -267,9 +266,6 @@ class CGCNN_OV(CGCNN):
       node_feats = self.embedding(node_feats)
 
       lout = node_feats
-
-      # import numpy as np
-      # np.savetxt('node_feats.txt', node_feats.detach().numpy())
 
       # convolutional layer
       for conv in self.conv_layers:
