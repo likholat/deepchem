@@ -542,7 +542,7 @@ class TorchModel(Model):
       else:
         output_values = self.model(inputs)
 
-        # print('TORCH RES')
+        print('TORCH RES')
         np.savetxt('torch_res.txt', output_values[1].detach().numpy())
 
         output_values = output_values[0]

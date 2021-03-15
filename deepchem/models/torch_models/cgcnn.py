@@ -59,23 +59,25 @@ class CGCNNLayer(nn.Module):
     z_dim = 2 * hidden_node_dim + edge_dim
     liner_out_dim = 2 * hidden_node_dim
     self.linear = nn.Linear(z_dim, liner_out_dim)
-    self.batch_norm = nn.BatchNorm1d(liner_out_dim) if batch_norm else None
+    # self.batch_norm = nn.BatchNorm1d(liner_out_dim) if batch_norm else None
 
   def message_func(self, edges):
     z = torch.cat(
         [edges.src['x'], edges.dst['x'], edges.data['edge_attr']], dim=1)
     z = self.linear(z)
-    if self.batch_norm is not None:
-      z = self.batch_norm(z)
+    # if self.batch_norm is not None:
+    #   z = self.batch_norm(z)
     gated_z, message_z = z.chunk(2, dim=1)
-    gated_z = torch.sigmoid(gated_z)
-    message_z = F.softplus(message_z)
+    # gated_z = torch.sigmoid(gated_z)
+    # message_z = F.softplus(message_z)
+    import numpy as np
     return {'message': gated_z * message_z}
 
   def reduce_func(self, nodes):
     nbr_sumed = torch.sum(nodes.mailbox['message'], dim=1)
-    new_x = F.softplus(nodes.data['x'] + nbr_sumed)
-    return {'new_x': new_x}
+    # new_x = F.softplus(nodes.data['x'] + nbr_sumed)
+    # return {'new_x': new_x}
+    return {'new_x': nodes.data['x'] + nbr_sumed}
 
   def forward(self, dgl_graph, node_feats, edge_feats):
     """Update node representations.
@@ -94,6 +96,7 @@ class CGCNNLayer(nn.Module):
     node_feats: torch.Tensor
       The updated node features. The shape is `(N, hidden_node_dim)`.
     """
+
     dgl_graph.ndata['x'] = node_feats
     dgl_graph.edata['edge_attr'] = edge_feats
     dgl_graph.update_all(self.message_func, self.reduce_func)
@@ -225,12 +228,13 @@ class CGCNN(nn.Module):
     node_feats = graph.ndata.pop('x')
     edge_feats = graph.edata.pop('edge_attr')
     node_feats = self.embedding(node_feats)
-
-    lout = node_feats
     
+    lout = None
     # convolutional layer
     for conv in self.conv_layers:
       node_feats = conv(graph, node_feats, edge_feats)
+      if lout is None:
+        lout = node_feats
 
     # pooling
     graph.ndata['updated_x'] = node_feats
@@ -265,11 +269,12 @@ class CGCNN_OV(CGCNN):
 
       node_feats = self.embedding(node_feats)
 
-      lout = node_feats
-
+      lout = None
       # convolutional layer
       for conv in self.conv_layers:
         node_feats = conv(graph, node_feats, edge_feats)
+        if lout is None:
+          lout = node_feats
 
       # pooling
       graph.ndata['updated_x'] = node_feats

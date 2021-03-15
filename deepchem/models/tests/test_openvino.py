@@ -28,6 +28,8 @@ def test_cgcnn():
   train, valid, _ = datasets
   n_tasks = len(tasks)
 
+  print(train)
+
   def init(**kwargs):
     torch.manual_seed(572)
     return dc.models.CGCNNModel(
