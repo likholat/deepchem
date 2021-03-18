@@ -267,10 +267,16 @@ class OpenVINOModel:
 
       self._outputs.append(None)
 
-      if len(inp_name) > 1:
+
+      inp_name_len = len(inp_name)
+      inputs_len = len(inputs)
+      if inp_name_len > 1 and (inp_name_len == inputs_len):
         request.async_infer(dict(zip(inp_name, inputs)))
-      else:
+      elif inp_name_len == 1 and inputs_len == 1:
         request.async_infer({inp_name[0]: inputs})
+      else:
+        sys.exit('Can\'t run infer: number of input names is ' \
+                  + str(inp_name_len) + ', but number of inputs is ' + str(inputs_len))
 
     # Copy rest of outputs
     status = self._exec_net.wait()

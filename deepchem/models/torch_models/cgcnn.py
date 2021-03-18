@@ -62,22 +62,38 @@ class CGCNNLayer(nn.Module):
     # self.batch_norm = nn.BatchNorm1d(liner_out_dim) if batch_norm else None
 
   def message_func(self, edges):
+    # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    # print(type(edges.src['x']))
+    # print(edges.src['x'].size())
+    # print(type(edges.dst['x']))
+    # print(edges.dst['x'].size())
+    # print(type(edges.data['edge_attr']))
+    # print(edges.data['edge_attr'].size())
+
     z = torch.cat(
         [edges.src['x'], edges.dst['x'], edges.data['edge_attr']], dim=1)
+    
+    # print(z.size())
+    
     z = self.linear(z)
     # if self.batch_norm is not None:
     #   z = self.batch_norm(z)
     gated_z, message_z = z.chunk(2, dim=1)
+    
     # gated_z = torch.sigmoid(gated_z)
     # message_z = F.softplus(message_z)
-    import numpy as np
     return {'message': gated_z * message_z}
+    # return {'message': gated_z}
 
   def reduce_func(self, nodes):
     nbr_sumed = torch.sum(nodes.mailbox['message'], dim=1)
     # new_x = F.softplus(nodes.data['x'] + nbr_sumed)
-    # return {'new_x': new_x}
+    # return {'new_x': nodes.data['x'] + nbr_sumed}
+
     return {'new_x': nodes.data['x'] + nbr_sumed}
+    # x = torch.ones(1, 64, requires_grad = True)
+    # y = torch.ones(1, 64, requires_grad = True)
+    # return {'new_x': x+y}
 
   def forward(self, dgl_graph, node_feats, edge_feats):
     """Update node representations.
@@ -99,6 +115,7 @@ class CGCNNLayer(nn.Module):
 
     dgl_graph.ndata['x'] = node_feats
     dgl_graph.edata['edge_attr'] = edge_feats
+
     dgl_graph.update_all(self.message_func, self.reduce_func)
     node_feats = dgl_graph.ndata.pop('new_x')
     return node_feats
@@ -266,6 +283,11 @@ class CGCNN_OV(CGCNN):
       graph = self.graph
       node_feats = inputs[0]
       edge_feats = inputs[1]
+
+      print('EDGE FEATS')
+      print(edge_feats.size())
+      print('NODE FEATS')
+      print(node_feats.size())
 
       node_feats = self.embedding(node_feats)
 
