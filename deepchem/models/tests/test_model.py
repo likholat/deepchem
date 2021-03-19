@@ -1,15 +1,18 @@
 import torch
+import numpy as np
 from openvino.inference_engine import IECore, ExecutableNetwork
 
 torch.manual_seed(124)
 
-node_feats = torch.rand(5, 92)
-edge_feats = torch.rand(60, 41)
+# node_feats = torch.rand(5, 92)
+# edge_feats = torch.rand(60, 41)
+node_feats = torch.from_numpy(np.loadtxt("/home/anna/projects/deepchem/node_feats.txt", dtype=np.float32))
+edge_feats = torch.from_numpy(np.loadtxt("/home/anna/projects/deepchem/edge_feats.txt", dtype=np.float32))
 inputs = [node_feats, edge_feats]
 
 ### Run model OV ###
 ie = IECore()
-net = ie.read_network('/home/anna/projects/deepchem/model_cgcnn.onnx')
+net = ie.read_network('/home/anna/projects/deepchem/model_cgcnn.xml')
 exec_net = ie.load_network(net, 'CPU')
 
 out_name = next(iter(exec_net.outputs.keys()))
