@@ -59,41 +59,24 @@ class CGCNNLayer(nn.Module):
     z_dim = 2 * hidden_node_dim + edge_dim
     liner_out_dim = 2 * hidden_node_dim
     self.linear = nn.Linear(z_dim, liner_out_dim)
-    # self.batch_norm = nn.BatchNorm1d(liner_out_dim) if batch_norm else None
+    self.batch_norm = nn.BatchNorm1d(liner_out_dim) if batch_norm else None
 
   def message_func(self, edges):
-    # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    # print(type(edges.src['x']))
-    # print(edges.src['x'].size())
-    # print(type(edges.dst['x']))
-    # print(edges.dst['x'].size())
-    # print(type(edges.data['edge_attr']))
-    # print(edges.data['edge_attr'].size())
-
     z = torch.cat(
         [edges.src['x'], edges.dst['x'], edges.data['edge_attr']], dim=1)
     
-    # print(z.size())
-    
     z = self.linear(z)
-    # if self.batch_norm is not None:
-    #   z = self.batch_norm(z)
-    gated_z, message_z = z.chunk(2, dim=1)
-    
-    # gated_z = torch.sigmoid(gated_z)
-    # message_z = F.softplus(message_z)
+    if self.batch_norm is not None:
+      z = self.batch_norm(z)
+    gated_z, message_z = z.chunk(2, dim=1) 
+    gated_z = torch.sigmoid(gated_z)
+    message_z = F.softplus(message_z)
     return {'message': gated_z * message_z}
-    # return {'message': gated_z}
 
   def reduce_func(self, nodes):
     nbr_sumed = torch.sum(nodes.mailbox['message'], dim=1)
-    # new_x = F.softplus(nodes.data['x'] + nbr_sumed)
-    # return {'new_x': nodes.data['x'] + nbr_sumed}
-
-    return {'new_x': nodes.data['x'] + nbr_sumed}
-    # x = torch.ones(1, 64, requires_grad = True)
-    # y = torch.ones(1, 64, requires_grad = True)
-    # return {'new_x': x+y}
+    new_x = F.softplus(nodes.data['x'] + nbr_sumed)
+    return {'new_x': new_x}
 
   def forward(self, dgl_graph, node_feats, edge_feats):
     """Update node representations.
@@ -246,12 +229,12 @@ class CGCNN(nn.Module):
     edge_feats = graph.edata.pop('edge_attr')
     node_feats = self.embedding(node_feats)
     
-    lout = None
+    # lout = None
     # convolutional layer
     for conv in self.conv_layers:
       node_feats = conv(graph, node_feats, edge_feats)
-      if lout is None:
-        lout = node_feats
+      # if lout is None:
+      #   lout = node_feats
 
     # pooling
     graph.ndata['updated_x'] = node_feats
@@ -260,7 +243,7 @@ class CGCNN(nn.Module):
     out = self.out(graph_feat)
 
     if self.mode == 'regression':
-      return out, lout
+      return out
     else:
       logits = out.view(-1, self.n_tasks, self.n_classes)
       # for n_tasks == 1 case
@@ -284,19 +267,14 @@ class CGCNN_OV(CGCNN):
       node_feats = inputs[0]
       edge_feats = inputs[1]
 
-      print('EDGE FEATS')
-      print(edge_feats.size())
-      print('NODE FEATS')
-      print(node_feats.size())
-
       node_feats = self.embedding(node_feats)
 
-      lout = None
+      # lout = None
       # convolutional layer
       for conv in self.conv_layers:
         node_feats = conv(graph, node_feats, edge_feats)
-        if lout is None:
-          lout = node_feats
+        # if lout is None:
+        #   lout = node_feats
 
       # pooling
       graph.ndata['updated_x'] = node_feats
@@ -315,7 +293,7 @@ class CGCNN_OV(CGCNN):
       out = self.out(graph_feat)
 
       if self.mode == 'regression':
-        return out, lout
+        return out
       else:
         logits = out.view(-1, self.n_tasks, self.n_classes)
         # for n_tasks == 1 case
