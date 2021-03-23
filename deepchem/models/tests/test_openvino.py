@@ -40,15 +40,19 @@ def test_cgcnn():
   ref_model = init()
   model = init(use_openvino=True)
 
-   # check overfit
+  # check overfit
   metric = dc.metrics.Metric(dc.metrics.mae_score, n_tasks=n_tasks)
   ref_scores = ref_model.evaluate(train, [metric], transformers)
-
   scores = model.evaluate(train, [metric], transformers)
-  # assert ref_scores[regression_metric.name] < 0.6
+
+  print(ref_scores) # {'mae_score': 23.823596866607666}
+  print(scores) # {'mae_score': 25.492488391876222}
 
   if path.exists(path.join(current_dir, 'perovskite.json')):
     remove(path.join(current_dir, 'perovskite.json'))
+
+  assert scores['mae_score'] == pytest.approx(
+    ref_scores['mae_score'], 1e-5)
 
 
 def test_tox21_tf_progressive():
@@ -77,6 +81,7 @@ def test_tox21_tf_progressive():
 
   ref_scores = ref_model.evaluate(valid_dataset, [metric], transformers)
   scores = model.evaluate(valid_dataset, [metric], transformers)
+
   assert scores['mean-roc_auc_score'] == pytest.approx(
       ref_scores['mean-roc_auc_score'], 1e-5)
   assert model._openvino_model.is_available()

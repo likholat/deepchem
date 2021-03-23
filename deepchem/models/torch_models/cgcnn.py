@@ -224,14 +224,12 @@ class CGCNN(nn.Module):
     graph = dgl_graph
     node_feats = graph.ndata.pop('x')
     edge_feats = graph.edata.pop('edge_attr')
-    
+
     node_feats = self.embedding(node_feats)
     
-    # lout = None
     # convolutional layer
     for conv in self.conv_layers:
       node_feats = conv(graph, node_feats, edge_feats)
-    # lout = node_feats
 
     # pooling
     graph.ndata['updated_x'] = node_feats
@@ -266,11 +264,9 @@ class CGCNN_OV(CGCNN):
 
       node_feats = self.embedding(node_feats)
 
-      # lout = None
       # convolutional layer
       for conv in self.conv_layers:
         node_feats = conv(graph, node_feats, edge_feats)
-      # lout = node_feats
 
       # pooling
       graph.ndata['updated_x'] = node_feats

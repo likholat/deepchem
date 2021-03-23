@@ -282,26 +282,7 @@ class OpenVINOModel:
       if self._outputs[out_id] is None:
         request = self._exec_net.requests[infer_request_id]
 
-        # ov_res = request.output_blobs[out_name[0]].buffer
         output = request.output_blobs[out_name].buffer
-
-        # print('CHECK OV RES')
-        # t_res = np.loadtxt('torch_res.txt')
-
-        # if np.isinf(ov_res).any():
-        #     print('ERROR! INF WAS FOUND!!!')
-        # elif np.isnan(ov_res).any():
-        #     print('ERROR! NAN WAS FOUND!!!')
-        # else:
-        #     print('OK: correct OV values!')
-        #     if ov_res.shape == t_res.shape:
-        #         print('OK: correct OV shape!')
-        #         abs_diff = np.absolute(t_res-ov_res)
-        #         print('DIFF: ' + str(np.max(abs_diff)))
-        #     else:
-        #         print('ERROR: WRONG SHAPE')
-        #         print(t_res.shape)
-        #         print(ov_res.shape)
 
         if out_id == len(self._outputs) - 1:
           self._outputs[out_id] = output[:last_batch_size]
