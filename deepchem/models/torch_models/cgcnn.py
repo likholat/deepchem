@@ -64,11 +64,10 @@ class CGCNNLayer(nn.Module):
   def message_func(self, edges):
     z = torch.cat(
         [edges.src['x'], edges.dst['x'], edges.data['edge_attr']], dim=1)
-    
     z = self.linear(z)
     if self.batch_norm is not None:
       z = self.batch_norm(z)
-    gated_z, message_z = z.chunk(2, dim=1) 
+    gated_z, message_z = z.chunk(2, dim=1)
     gated_z = torch.sigmoid(gated_z)
     message_z = F.softplus(message_z)
     return {'message': gated_z * message_z}
@@ -95,10 +94,8 @@ class CGCNNLayer(nn.Module):
     node_feats: torch.Tensor
       The updated node features. The shape is `(N, hidden_node_dim)`.
     """
-
     dgl_graph.ndata['x'] = node_feats
     dgl_graph.edata['edge_attr'] = edge_feats
-
     dgl_graph.update_all(self.message_func, self.reduce_func)
     node_feats = dgl_graph.ndata.pop('new_x')
     return node_feats
@@ -227,14 +224,14 @@ class CGCNN(nn.Module):
     graph = dgl_graph
     node_feats = graph.ndata.pop('x')
     edge_feats = graph.edata.pop('edge_attr')
+    
     node_feats = self.embedding(node_feats)
     
     # lout = None
     # convolutional layer
     for conv in self.conv_layers:
       node_feats = conv(graph, node_feats, edge_feats)
-      # if lout is None:
-      #   lout = node_feats
+    # lout = node_feats
 
     # pooling
     graph.ndata['updated_x'] = node_feats
@@ -273,7 +270,6 @@ class CGCNN_OV(CGCNN):
       # convolutional layer
       for conv in self.conv_layers:
         node_feats = conv(graph, node_feats, edge_feats)
-        # if lout is None:
       # lout = node_feats
 
       # pooling

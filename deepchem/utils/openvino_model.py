@@ -199,16 +199,12 @@ class OpenVINOModel:
       generator = self._load_model(generator)
 
     # assert (len(self._exec_net.input_info) == 1), 'Not implemented'
-    # assert (len(self._exec_net.outputs) == 1), 'Not implemented'
+    assert (len(self._exec_net.outputs) == 1), 'Not implemented'
     inp_name = []
     for name in list(self._exec_net.input_info.keys()):
       inp_name.append(name)
 
-    # out_name = next(iter(self._exec_net.outputs.keys()))
-
-    out_name = []
-    for name in list(self._exec_net.outputs.keys()):
-      out_name.append(name)
+    out_name = next(iter(self._exec_net.outputs.keys()))
 
     infer_request_input_id = [-1] * len(self._exec_net.requests)
 
@@ -261,7 +257,7 @@ class OpenVINOModel:
 
       # Copy output prediction (if already started)
       if out_id != -1:
-        self._outputs[out_id] = request.output_blobs[out_name[0]].buffer
+        self._outputs[out_id] = request.output_blobs[out_name].buffer
 
       infer_request_input_id[infer_request_id] = inp_id
 
@@ -287,7 +283,7 @@ class OpenVINOModel:
         request = self._exec_net.requests[infer_request_id]
 
         # ov_res = request.output_blobs[out_name[0]].buffer
-        output = request.output_blobs[out_name[0]].buffer
+        output = request.output_blobs[out_name].buffer
 
         # print('CHECK OV RES')
         # t_res = np.loadtxt('torch_res.txt')
