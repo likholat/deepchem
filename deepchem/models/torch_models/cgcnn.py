@@ -274,7 +274,7 @@ class CGCNN_OV(CGCNN):
       for conv in self.conv_layers:
         node_feats = conv(graph, node_feats, edge_feats)
         # if lout is None:
-        #   lout = node_feats
+      # lout = node_feats
 
       # pooling
       graph.ndata['updated_x'] = node_feats
